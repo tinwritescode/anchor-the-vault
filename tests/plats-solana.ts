@@ -9,6 +9,8 @@ const SAMPLE_PRIZE = new anchor.BN(1000)
 interface PDAParameters {
   taskVaultAccount: anchor.web3.PublicKey
   taskVaultBump: number
+  taskVaultTreasurer: anchor.web3.PublicKey
+  taskVaultTokenAccount: anchor.web3.PublicKey
 }
 
 describe('plats-solana', async () => {
@@ -64,6 +66,48 @@ describe('plats-solana', async () => {
     return tokenMint.publicKey
   }
 
+  const createAssociatedWalletAndMintSomeTokens = async ({ mint, user }) => {
+    // Create a token account for the user and mint some tokens
+    let userAssociatedTokenAccount = await spl.getAssociatedTokenAddress(
+      mint,
+      user.publicKey,
+      true,
+      spl.TOKEN_PROGRAM_ID,
+      spl.ASSOCIATED_TOKEN_PROGRAM_ID,
+    )
+
+    const txFundTokenAccount = new anchor.web3.Transaction()
+    txFundTokenAccount.add(
+      spl.createAssociatedTokenAccountInstruction(
+        user.publicKey,
+        userAssociatedTokenAccount,
+        user.publicKey,
+        mint,
+        spl.TOKEN_PROGRAM_ID,
+        spl.ASSOCIATED_TOKEN_PROGRAM_ID,
+      ),
+    )
+    txFundTokenAccount.add(
+      spl.createMintToInstruction(
+        mint,
+        userAssociatedTokenAccount,
+        provider.wallet.publicKey,
+        1337000000,
+        [],
+        spl.TOKEN_PROGRAM_ID,
+      ),
+    )
+
+    const txFundTokenSig = await provider.sendAndConfirm(txFundTokenAccount, [
+      user,
+    ])
+    console.log(
+      `[${userAssociatedTokenAccount.toBase58()}] New associated account for mint ${mint.toBase58()}: ${txFundTokenSig}`,
+    )
+
+    return userAssociatedTokenAccount
+  }
+
   const createUserAndAssociatedWallet = async (
     connection: anchor.web3.Connection,
     mint?: anchor.web3.PublicKey,
@@ -88,42 +132,8 @@ describe('plats-solana', async () => {
     )
 
     if (mint) {
-      // Create a token account for the user and mint some tokens
-      userAssociatedTokenAccount = await spl.getAssociatedTokenAddress(
-        mint,
-        user.publicKey,
-        true,
-        spl.TOKEN_PROGRAM_ID,
-        spl.ASSOCIATED_TOKEN_PROGRAM_ID,
-      )
-
-      const txFundTokenAccount = new anchor.web3.Transaction()
-      txFundTokenAccount.add(
-        spl.createAssociatedTokenAccountInstruction(
-          user.publicKey,
-          userAssociatedTokenAccount,
-          user.publicKey,
-          mint,
-          spl.TOKEN_PROGRAM_ID,
-          spl.ASSOCIATED_TOKEN_PROGRAM_ID,
-        ),
-      )
-      txFundTokenAccount.add(
-        spl.createMintToInstruction(
-          mint,
-          userAssociatedTokenAccount,
-          provider.wallet.publicKey,
-          1337000000,
-          [],
-          spl.TOKEN_PROGRAM_ID,
-        ),
-      )
-
-      const txFundTokenSig = await provider.sendAndConfirm(txFundTokenAccount, [
-        user,
-      ])
-      console.log(
-        `[${userAssociatedTokenAccount.toBase58()}] New associated account for mint ${mint.toBase58()}: ${txFundTokenSig}`,
+      userAssociatedTokenAccount = await createAssociatedWalletAndMintSomeTokens(
+        { mint, user },
       )
     }
     return [user, userAssociatedTokenAccount]
@@ -146,9 +156,21 @@ describe('plats-solana', async () => {
       program.programId,
     )
 
+    let [taskVaultTreasurer] = await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from('task_vault_treasurer'), taskVaultAccount.toBuffer()],
+      program.programId,
+    )
+
+    let taskVaultTokenAccount = await anchor.utils.token.associatedAddress({
+      owner: taskVaultTreasurer,
+      mint: mint,
+    })
+
     return {
       taskVaultAccount,
       taskVaultBump: accountBump,
+      taskVaultTreasurer,
+      taskVaultTokenAccount,
     }
   }
 
@@ -187,14 +209,27 @@ describe('plats-solana', async () => {
     const [, aliceBalancePre] = await readAccount(aliceWallet, provider)
     assert.equal(aliceBalancePre, '1337000000')
 
+    const amount = new anchor.BN(20000000)
+
     await program.methods
-      .initializeTaskvault(pda.taskVaultBump, SAMPLE_PRIZE)
-      // .preInstructions(taskVaultAccount)
+      .initializeTaskvault(pda.taskVaultBump, SAMPLE_PRIZE, amount)
       .accounts({
-        authority: wallet.publicKey,
+        authority: alice.publicKey,
+        authorityTokenAccount: aliceWallet,
+
         taskVault: pda.taskVaultAccount,
+        treasurer: pda.taskVaultTreasurer,
+        taskVaultTokenAccount: pda.taskVaultTokenAccount,
+
+        mintOfTokenBeingSent: mintAddress,
+
+        // programs
         systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: spl.TOKEN_PROGRAM_ID,
+        associatedTokenProgram: spl.ASSOCIATED_TOKEN_PROGRAM_ID,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
+      .signers([alice])
       .rpc()
 
     const accountInfo = await program.account.taskVault.fetch(
