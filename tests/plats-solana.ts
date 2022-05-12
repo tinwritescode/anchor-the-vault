@@ -13,13 +13,12 @@ interface PDAParameters {
   taskVaultTokenAccount: anchor.web3.PublicKey
 }
 
-describe('plats-solana', async () => {
+describe('plats-solana', () => {
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env()
   anchor.setProvider(provider)
 
   const program = anchor.workspace.PlatsSolana as Program<PlatsSolana>
-  const wallet = provider.wallet
 
   let mintAddress: anchor.web3.PublicKey
   let pda: PDAParameters
@@ -204,7 +203,7 @@ describe('plats-solana', async () => {
       mintAddress,
     )
   })
-
+  /* 
   it('Initialize a task vault!', async () => {
     const [, aliceBalancePre] = await readAccount(aliceWallet, provider)
     assert.equal(aliceBalancePre, '1337000000')
@@ -236,5 +235,63 @@ describe('plats-solana', async () => {
       pda.taskVaultAccount,
     )
     console.log(accountInfo)
+  }) */
+
+  it('Initialize the vault (existing deposit) -> Deposit more token -> Withdraw !', async () => {
+    const [, aliceBalancePre] = await readAccount(aliceWallet, provider)
+    assert.equal(aliceBalancePre, '1337000000')
+
+    const amount = new anchor.BN(20000000)
+
+    await program.methods
+      .initializeTaskvault(pda.taskVaultBump, SAMPLE_PRIZE, amount)
+      .accounts({
+        authority: alice.publicKey,
+        authorityTokenAccount: aliceWallet,
+
+        taskVault: pda.taskVaultAccount,
+        treasurer: pda.taskVaultTreasurer,
+        taskVaultTokenAccount: pda.taskVaultTokenAccount,
+
+        mintOfTokenBeingSent: mintAddress,
+
+        // programs
+        systemProgram: anchor.web3.SystemProgram.programId,
+        tokenProgram: spl.TOKEN_PROGRAM_ID,
+        associatedTokenProgram: spl.ASSOCIATED_TOKEN_PROGRAM_ID,
+        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+      })
+      .signers([alice])
+      .rpc()
+
+    {
+      // Deposit to the vault
+      let amount = new anchor.BN(10000000)
+
+      await program.methods
+        .depositToTheVault(amount)
+        .accounts({
+          authority: alice.publicKey,
+          authorityTokenAccount: aliceWallet,
+
+          taskVault: pda.taskVaultAccount,
+          treasurer: pda.taskVaultTreasurer,
+          taskVaultTokenAccount: pda.taskVaultTokenAccount,
+
+          mintOfTokenBeingSent: mintAddress,
+
+          // programs
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: spl.TOKEN_PROGRAM_ID,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([alice])
+        .rpc()
+
+      const accountInfo = await program.account.taskVault.fetch(
+        pda.taskVaultAccount,
+      )
+      console.log(accountInfo)
+    }
   })
 })
