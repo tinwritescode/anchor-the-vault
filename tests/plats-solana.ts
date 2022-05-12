@@ -2,8 +2,14 @@ import * as anchor from '@project-serum/anchor'
 import { Program } from '@project-serum/anchor'
 import { PlatsSolana } from '../target/types/plats_solana'
 import * as spl from '@solana/spl-token'
+import { assert } from 'chai'
 
 const SAMPLE_PRIZE = new anchor.BN(1000)
+
+interface PDAParameters {
+  taskVaultAccount: anchor.web3.PublicKey
+  taskVaultBump: number
+}
 
 describe('plats-solana', async () => {
   // Configure the client to use the local cluster.
@@ -12,19 +18,14 @@ describe('plats-solana', async () => {
 
   const program = anchor.workspace.PlatsSolana as Program<PlatsSolana>
   const wallet = provider.wallet
-  const [
-    taskVaultAccount,
-    accountBump,
-  ] = await anchor.web3.PublicKey.findProgramAddress(
-    [Buffer.from('task_vault')],
-    program.programId,
-  )
 
   let mintAddress: anchor.web3.PublicKey
+  let pda: PDAParameters
   let [alice, aliceWallet]: [anchor.web3.Keypair, anchor.web3.PublicKey] = [
     null,
     null,
   ]
+  let [bob]: [anchor.web3.Keypair] = [null]
 
   const createMint = async (
     connection: anchor.web3.Connection,
@@ -128,26 +129,77 @@ describe('plats-solana', async () => {
     return [user, userAssociatedTokenAccount]
   }
 
-  // beforeEach(async () => {})
+  const getPdaParams = async (
+    connection: anchor.web3.Connection,
+    alice: anchor.web3.PublicKey,
+    bob: anchor.web3.PublicKey,
+    mint: anchor.web3.PublicKey,
+  ): Promise<PDAParameters> => {
+    // const uid = new anchor.BN(parseInt((Date.now() / 1000).toString()))
+    // const uidBuffer = uid.toBuffer('le', 8)
 
-  it('Initialize a task vault!', async () => {
+    let [
+      taskVaultAccount,
+      accountBump,
+    ] = await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from('task_vault')],
+      program.programId,
+    )
+
+    return {
+      taskVaultAccount,
+      taskVaultBump: accountBump,
+    }
+  }
+
+  const readAccount = async (
+    accountPublicKey: anchor.web3.PublicKey,
+    provider: anchor.Provider,
+  ): Promise<[spl.RawAccount, string]> => {
+    const tokenInfoLol = await provider.connection.getAccountInfo(
+      accountPublicKey,
+    )
+    const data = Buffer.from(tokenInfoLol.data)
+    const accountInfo: spl.RawAccount = spl.AccountLayout.decode(data)
+    const amount = accountInfo.amount
+
+    return [accountInfo, amount.toString()]
+  }
+
+  beforeEach(async () => {
     mintAddress = await createMint(provider.connection)
     ;[alice, aliceWallet] = await createUserAndAssociatedWallet(
       provider.connection,
       mintAddress,
     )
+    let _rest: any
+    ;[bob, ..._rest] = await createUserAndAssociatedWallet(provider.connection)
+
+    pda = await getPdaParams(
+      provider.connection,
+      alice.publicKey,
+      bob.publicKey,
+      mintAddress,
+    )
+  })
+
+  it('Initialize a task vault!', async () => {
+    const [, aliceBalancePre] = await readAccount(aliceWallet, provider)
+    assert.equal(aliceBalancePre, '1337000000')
 
     await program.methods
-      .initializeTaskvault(accountBump, SAMPLE_PRIZE)
+      .initializeTaskvault(pda.taskVaultBump, SAMPLE_PRIZE)
       // .preInstructions(taskVaultAccount)
       .accounts({
         authority: wallet.publicKey,
-        taskVault: taskVaultAccount,
+        taskVault: pda.taskVaultAccount,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc()
 
-    const accountInfo = await program.account.taskVault.fetch(taskVaultAccount)
+    const accountInfo = await program.account.taskVault.fetch(
+      pda.taskVaultAccount,
+    )
     console.log(accountInfo)
   })
 })
