@@ -203,8 +203,8 @@ describe('plats-solana', () => {
       mintAddress,
     )
   })
-  /* 
-  it('Initialize a task vault!', async () => {
+
+  /* it('Initialize a task vault!', async () => {
     const [, aliceBalancePre] = await readAccount(aliceWallet, provider)
     assert.equal(aliceBalancePre, '1337000000')
 
@@ -283,7 +283,35 @@ describe('plats-solana', () => {
           // programs
           systemProgram: anchor.web3.SystemProgram.programId,
           tokenProgram: spl.TOKEN_PROGRAM_ID,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .signers([alice])
+        .rpc()
+
+      const accountInfo = await program.account.taskVault.fetch(
+        pda.taskVaultAccount,
+      )
+      console.log(accountInfo)
+    }
+
+    {
+      // Withdraw from the vault
+      let amount = new anchor.BN(10000002)
+
+      await program.methods
+        .withdrawFromTheVault(amount)
+        .accounts({
+          authority: alice.publicKey,
+          authorityTokenAccount: aliceWallet,
+
+          taskVault: pda.taskVaultAccount,
+          treasurer: pda.taskVaultTreasurer,
+          taskVaultTokenAccount: pda.taskVaultTokenAccount,
+
+          mintOfTokenBeingSent: mintAddress,
+
+          // programs
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: spl.TOKEN_PROGRAM_ID,
         })
         .signers([alice])
         .rpc()
