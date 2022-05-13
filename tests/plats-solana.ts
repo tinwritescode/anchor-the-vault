@@ -298,7 +298,7 @@ describe('plats-solana', () => {
       let amount = new anchor.BN(10000002)
 
       await program.methods
-        .withdrawFromTheVault(amount, pda.taskVaultBump)
+        .withdrawFromTheVault(amount)
         .accounts({
           authority: alice.publicKey,
           authorityTokenAccount: aliceWallet,

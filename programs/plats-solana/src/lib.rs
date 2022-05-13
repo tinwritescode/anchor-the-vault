@@ -9,6 +9,7 @@ pub mod plats_solana {
 
     pub fn initialize_taskvault(
         ctx: Context<InitializeTaskVault>,
+        bump: u8,
         prize: u64,
         amount: u64,
     ) -> Result<()> {
@@ -21,6 +22,7 @@ pub mod plats_solana {
         task_vault.paid = vec![];
         task_vault.authority = authority.key();
         task_vault.token_deposit = amount;
+        task_vault.bump = bump;
 
         // Below is the actual instruction that we are going to send to the Token program.
         let transfer_instruction = anchor_spl::token::Transfer {
@@ -78,11 +80,7 @@ pub mod plats_solana {
         Ok(())
     }
 
-    pub fn withdraw_from_the_vault(
-        ctx: Context<WithdrawFromTheVault>,
-        amount: u64,
-        bump: u8,
-    ) -> Result<()> {
+    pub fn withdraw_from_the_vault(ctx: Context<WithdrawFromTheVault>, amount: u64) -> Result<()> {
         let task_vault = &mut ctx.accounts.task_vault;
         let authority_token_account = &mut ctx.accounts.authority_token_account;
         let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
@@ -98,14 +96,14 @@ pub mod plats_solana {
         let transfer_instruction = anchor_spl::token::Transfer {
             from: task_vault_token_account.to_account_info(), // wallet to withdraw from
             to: authority_token_account.to_account_info(),
-            authority: ctx.accounts.treasurer.to_account_info(),
+            // authority: ctx.accounts.treasurer.to_account_info(),
+            authority: task_vault.to_account_info(),
         };
 
         let seeds: &[&[&[u8]]] = &[&[
             b"task_vault_treasurer".as_ref(),
             &task_vault.key().to_bytes(),
-            &[bump],
-            // &[*ctx.bumps.get("task_vault_treasurer").unwrap()],
+            &[task_vault.bump],
         ]];
 
         let cpi_ctx = CpiContext::new_with_signer(
@@ -156,6 +154,7 @@ pub struct TaskVault {
     pub token_deposit: u64,
     pub prize: u64,
     pub paid: Vec<Pubkey>,
+    pub bump: u8,
 }
 
 impl TaskVault {
