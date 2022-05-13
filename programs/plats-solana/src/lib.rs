@@ -9,7 +9,6 @@ pub mod plats_solana {
 
     pub fn initialize_taskvault(
         ctx: Context<InitializeTaskVault>,
-        taskvault_bump: u8,
         prize: u64,
         amount: u64,
     ) -> Result<()> {
@@ -18,7 +17,6 @@ pub mod plats_solana {
         let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
         let authority_token_account = &mut ctx.accounts.authority_token_account;
 
-        task_vault.bump = taskvault_bump;
         task_vault.prize = prize;
         task_vault.paid = vec![];
         task_vault.authority = authority.key();
@@ -83,7 +81,7 @@ pub mod plats_solana {
     pub fn withdraw_from_the_vault(
         ctx: Context<WithdrawFromTheVault>,
         amount: u64,
-        nonce: u8,
+        bump: u8,
     ) -> Result<()> {
         let task_vault = &mut ctx.accounts.task_vault;
         let authority_token_account = &mut ctx.accounts.authority_token_account;
@@ -104,9 +102,10 @@ pub mod plats_solana {
         };
 
         let seeds: &[&[&[u8]]] = &[&[
-            "task_vault_treasurer".as_ref(),
+            b"task_vault_treasurer".as_ref(),
             &task_vault.key().to_bytes(),
-            &[*ctx.bumps.get("task_vault_treasurer").unwrap()],
+            &[bump],
+            // &[*ctx.bumps.get("task_vault_treasurer").unwrap()],
         ]];
 
         let cpi_ctx = CpiContext::new_with_signer(
@@ -156,7 +155,6 @@ pub struct TaskVault {
     pub authority: Pubkey,
     pub token_deposit: u64,
     pub prize: u64,
-    pub bump: u8, //temporary, useless, remove it later
     pub paid: Vec<Pubkey>,
 }
 
