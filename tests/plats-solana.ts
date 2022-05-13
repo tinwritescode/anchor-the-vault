@@ -149,14 +149,14 @@ describe('plats-solana', () => {
 
     let [
       taskVaultAccount,
-      accountBump,
+      taskVaultAccountBump,
     ] = await anchor.web3.PublicKey.findProgramAddress(
       [Buffer.from('task_vault')],
       program.programId,
     )
 
     let [taskVaultTreasurer] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from('task_vault_treasurer'), taskVaultAccount.toBuffer()],
+      [Buffer.from('treasurer'), taskVaultAccount.toBuffer()],
       program.programId,
     )
 
@@ -167,7 +167,7 @@ describe('plats-solana', () => {
 
     return {
       taskVaultAccount,
-      taskVaultBump: accountBump,
+      taskVaultBump: taskVaultAccountBump,
       taskVaultTreasurer,
       taskVaultTokenAccount,
     }

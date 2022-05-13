@@ -84,6 +84,7 @@ pub mod plats_solana {
         let task_vault = &mut ctx.accounts.task_vault;
         let authority_token_account = &mut ctx.accounts.authority_token_account;
         let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
+        let treasurer = &ctx.accounts.treasurer;
 
         assert!(
             task_vault.token_deposit >= amount,
@@ -93,22 +94,19 @@ pub mod plats_solana {
         task_vault.token_deposit -= amount;
 
         // Below is the actual instruction that we are going to send to the Token program.
-        let transfer_instruction = anchor_spl::token::Transfer {
-            from: task_vault_token_account.to_account_info(), // wallet to withdraw from
-            to: authority_token_account.to_account_info(),
-            // authority: ctx.accounts.treasurer.to_account_info(),
-            authority: task_vault.to_account_info(),
-        };
-
         let seeds: &[&[&[u8]]] = &[&[
-            b"task_vault_treasurer".as_ref(),
+            "treasurer".as_ref(),
             &task_vault.key().to_bytes(),
             &[task_vault.bump],
         ]];
 
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
-            transfer_instruction,
+            anchor_spl::token::Transfer {
+                from: task_vault_token_account.to_account_info(),
+                to: authority_token_account.to_account_info(),
+                authority: treasurer.to_account_info(),
+            },
             seeds,
         );
 
@@ -119,7 +117,7 @@ pub mod plats_solana {
             authority_token_account.key()
         );
 
-        anchor_spl::token::transfer(cpi_ctx, amount)?;
+        // anchor_spl::token::transfer(cpi_ctx, amount)?;
 
         Ok(())
     }
@@ -130,7 +128,7 @@ pub struct InitializeTaskVault<'info> {
     #[account(mut)]
     pub authority: Signer<'info>, // aka sender
 
-    #[account(seeds = [b"task_vault_treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
+    #[account(seeds = [b"treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
     /// CHECK: Just a pure account
     pub treasurer: AccountInfo<'info>,
     pub mint_of_token_being_sent: Box<Account<'info, anchor_spl::token::Mint>>,
@@ -169,7 +167,7 @@ pub struct DepositToTheVault<'info> {
     #[account(mut)]
     pub task_vault: Account<'info, TaskVault>,
 
-    #[account(seeds = [b"task_vault_treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
+    #[account(seeds = [b"treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
     /// CHECK: Just a pure account
     pub treasurer: AccountInfo<'info>,
 
@@ -193,7 +191,7 @@ pub struct WithdrawFromTheVault<'info> {
     #[account(mut)]
     pub task_vault: Account<'info, TaskVault>,
 
-    #[account(seeds = [b"task_vault_treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
+    #[account(seeds = [b"treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
     /// CHECK: Just a pure account
     pub treasurer: AccountInfo<'info>,
 
