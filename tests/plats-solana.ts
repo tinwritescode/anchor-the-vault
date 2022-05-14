@@ -4,8 +4,6 @@ import { PlatsSolana } from '../target/types/plats_solana'
 import * as spl from '@solana/spl-token'
 import { assert } from 'chai'
 
-const SAMPLE_PRIZE = new anchor.BN(1000)
-
 interface PDAParameters {
   taskVaultAccount: anchor.web3.PublicKey
   taskVaultBump: number
@@ -26,7 +24,10 @@ describe('plats-solana', () => {
     null,
     null,
   ]
-  let [bob]: [anchor.web3.Keypair] = [null]
+  let [bob, bobWallet]: [anchor.web3.Keypair, anchor.web3.PublicKey] = [
+    null,
+    null,
+  ]
 
   const createMint = async (
     connection: anchor.web3.Connection,
@@ -193,8 +194,10 @@ describe('plats-solana', () => {
       provider.connection,
       mintAddress,
     )
-    let _rest: any
-    ;[bob, ..._rest] = await createUserAndAssociatedWallet(provider.connection)
+    ;[bob, bobWallet] = await createUserAndAssociatedWallet(
+      provider.connection,
+      mintAddress,
+    )
 
     pda = await getPdaParams(
       provider.connection,
@@ -242,12 +245,14 @@ describe('plats-solana', () => {
     assert.equal(aliceBalancePre, '1337000000')
 
     const amount = new anchor.BN(200)
+    const sample_prize = new anchor.BN(20)
 
     await program.methods
-      .initializeTaskvault(pda.taskVaultBump, SAMPLE_PRIZE, amount)
+      .initializeTaskvault(sample_prize, amount)
       .accounts({
         authority: alice.publicKey,
         authorityTokenAccount: aliceWallet,
+        rewardAccount: alice.publicKey,
 
         taskVault: pda.taskVaultAccount,
         treasurer: pda.taskVaultTreasurer,
@@ -263,6 +268,10 @@ describe('plats-solana', () => {
       })
       .signers([alice])
       .rpc()
+
+    console.log(
+      `[${alice.publicKey.toBase58()}] Initialize the vault with ${amount} of PLATS, and reward ${sample_prize} of PLATS`,
+    )
 
     {
       // Deposit to the vault
@@ -290,7 +299,15 @@ describe('plats-solana', () => {
       const accountInfo = await program.account.taskVault.fetch(
         pda.taskVaultAccount,
       )
-      console.log('After deposit:', accountInfo.tokenDeposit.toString())
+
+      console.log(
+        `[${alice.publicKey.toBase58()}] Deposit ${amount} of PLATS to the vault`,
+      )
+      console.log(
+        `[${alice.publicKey.toBase58()}] After deposit, the vault has ${
+          accountInfo.tokenDeposit
+        } of PLATS`,
+      )
     }
 
     {
@@ -319,7 +336,50 @@ describe('plats-solana', () => {
       const accountInfo = await program.account.taskVault.fetch(
         pda.taskVaultAccount,
       )
-      console.log('After withdraw', accountInfo.tokenDeposit.toString())
+      // console.log('After withdraw', accountInfo.tokenDeposit.toString())
+      console.log(
+        `[${alice.publicKey.toBase58()}] Withdraw ${amount} of PLATS from the vault`,
+      )
+      console.log(
+        `[${alice.publicKey.toBase58()}] After withdraw, the vault has ${
+          accountInfo.tokenDeposit
+        } of PLATS`,
+      )
+    }
+
+    // Reward to bob
+    {
+      await program.methods
+        .rewardUser()
+        .accounts({
+          userToReward: bob.publicKey,
+          userToRewardTokenAccount: bobWallet,
+          rewardAccount: alice.publicKey,
+          taskVault: pda.taskVaultAccount,
+          treasurer: pda.taskVaultTreasurer,
+          taskVaultTokenAccount: pda.taskVaultTokenAccount,
+
+          mintOfTokenBeingSent: mintAddress,
+
+          // programs
+          systemProgram: anchor.web3.SystemProgram.programId,
+          tokenProgram: spl.TOKEN_PROGRAM_ID,
+        })
+        .signers([alice])
+        .rpc()
+
+      const accountInfo = await program.account.taskVault.fetch(
+        pda.taskVaultAccount,
+      )
+      // console.log('After reward', accountInfo.tokenDeposit.toString())
+      console.log(
+        `[${alice.publicKey.toBase58()}] Reward ${bob.publicKey.toBase58()} with ${sample_prize} of PLATS`,
+      )
+      console.log(
+        `[${alice.publicKey.toBase58()}] After reward, the vault has ${
+          accountInfo.tokenDeposit
+        } of PLATS`,
+      )
     }
   })
 })

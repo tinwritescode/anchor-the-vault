@@ -16,11 +16,10 @@ pub mod plats_solana {
 
     pub fn initialize_taskvault(
         ctx: Context<InitializeTaskVault>,
-        bump: u8,
         prize: u64,
         amount: u64,
     ) -> Result<()> {
-        initialize_taskvault::exec(ctx, bump, prize, amount)
+        initialize_taskvault::exec(ctx, prize, amount)
     }
 
     pub fn deposit_to_the_vault(ctx: Context<DepositToTheVault>, amount: u64) -> Result<()> {
@@ -29,5 +28,9 @@ pub mod plats_solana {
 
     pub fn withdraw_from_the_vault(ctx: Context<WithdrawFromTheVault>, amount: u64) -> Result<()> {
         withdraw_from_the_vault::exec(ctx, amount)
+    }
+
+    pub fn reward_user(ctx: Context<RewardUser>) -> Result<()> {
+        reward_user::exec(ctx)
     }
 }

@@ -5,9 +5,9 @@ pub struct TaskVault {
     pub authority: Pubkey,
     pub token_deposit: u64,
     pub prize: u64,
-    pub paid: Vec<Pubkey>,
-    pub bump: u8,
+    pub paid_to: Vec<Pubkey>,
     pub mint_of_token_being_sent: Pubkey,
+    pub reward_account: Pubkey,
 }
 
 impl TaskVault {

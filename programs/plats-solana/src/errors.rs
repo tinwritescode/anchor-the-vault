@@ -4,4 +4,6 @@ use anchor_lang::prelude::*;
 pub enum ErrorCode {
     #[msg("Not enough tokens from the vault.")]
     NotEnoughTokensFromTheVault,
+    #[msg("Already paid")]
+    AlreadyPaid,
 }

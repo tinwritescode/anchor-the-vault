@@ -1,20 +1,28 @@
 use anchor_lang::prelude::*;
 
-pub use crate::errors::ErrorCode;
-pub use crate::schemas::task_vault::*;
+use crate::errors::ErrorCode;
+use crate::TaskVault;
 
-pub fn exec(ctx: Context<WithdrawFromTheVault>, amount: u64) -> Result<()> {
+pub fn exec(ctx: Context<RewardUser>) -> Result<()> {
     let task_vault = &mut ctx.accounts.task_vault;
-    let authority_token_account = &mut ctx.accounts.authority_token_account;
+    let user_to_reward = &mut ctx.accounts.user_to_reward;
     let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
+    let user_to_reward_token_account = &mut ctx.accounts.user_to_reward_token_account;
     let treasurer = &ctx.accounts.treasurer;
 
-    if task_vault.token_deposit < amount {
-        return err!(ErrorCode::NotEnoughTokensFromTheVault);
+    if task_vault.paid_to.contains(&user_to_reward.key()) {
+        return err!(ErrorCode::AlreadyPaid);
     }
 
-    msg!("Token deposit {}", task_vault.token_deposit);
+    task_vault.paid_to.push(user_to_reward.key());
 
+    let amount = {
+        if task_vault.prize > task_vault.token_deposit {
+            task_vault.token_deposit
+        } else {
+            task_vault.prize
+        }
+    };
     task_vault.token_deposit -= amount;
 
     // Below is the actual instruction that we are going to send to the Token program.
@@ -28,17 +36,17 @@ pub fn exec(ctx: Context<WithdrawFromTheVault>, amount: u64) -> Result<()> {
         ctx.accounts.token_program.to_account_info(),
         anchor_spl::token::Transfer {
             from: task_vault_token_account.to_account_info().clone(),
-            to: authority_token_account.to_account_info().clone(),
+            to: user_to_reward_token_account.to_account_info().clone(),
             authority: treasurer.to_account_info().clone(),
         },
         seeds,
     );
 
     msg!(
-        "Withdrawing {} tokens from {} to {}",
+        "Rewarding {} tokens from {} to {}",
         amount,
         task_vault_token_account.key(),
-        authority_token_account.key()
+        user_to_reward.key()
     );
 
     anchor_spl::token::transfer(cpi_ctx, amount)?;
@@ -47,11 +55,15 @@ pub fn exec(ctx: Context<WithdrawFromTheVault>, amount: u64) -> Result<()> {
 }
 
 #[derive(Accounts)]
-pub struct WithdrawFromTheVault<'info> {
+pub struct RewardUser<'info> {
     #[account(mut)]
-    pub authority: Signer<'info>, // aka sender
+    pub reward_account: Signer<'info>, // aka sender
 
-    #[account(mut, has_one = authority)]
+    #[account(mut)]
+    /// CHECK: The user account that is being rewarded
+    pub user_to_reward: AccountInfo<'info>,
+
+    #[account(mut, has_one = reward_account)]
     pub task_vault: Account<'info, TaskVault>,
 
     #[account(seeds = [b"treasurer", &task_vault.key().to_bytes()], bump)]
@@ -60,8 +72,8 @@ pub struct WithdrawFromTheVault<'info> {
 
     #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = treasurer)]
     pub task_vault_token_account: Account<'info, anchor_spl::token::TokenAccount>,
-    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = authority)]
-    pub authority_token_account: Account<'info, anchor_spl::token::TokenAccount>, // aka: wallet to withdraw from
+    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = user_to_reward)]
+    pub user_to_reward_token_account: Account<'info, anchor_spl::token::TokenAccount>, // aka: wallet to withdraw from
 
     #[account(mut)]
     pub mint_of_token_being_sent: Box<Account<'info, anchor_spl::token::Mint>>,

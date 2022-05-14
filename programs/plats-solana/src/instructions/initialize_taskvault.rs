@@ -2,19 +2,20 @@ use anchor_lang::prelude::*;
 
 pub use crate::schemas::task_vault::*;
 
-pub fn exec(ctx: Context<InitializeTaskVault>, bump: u8, prize: u64, amount: u64) -> Result<()> {
+pub fn exec(ctx: Context<InitializeTaskVault>, prize: u64, amount: u64) -> Result<()> {
     let task_vault = &mut ctx.accounts.task_vault;
     let authority = &ctx.accounts.authority;
     let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
     let authority_token_account = &mut ctx.accounts.authority_token_account;
     let mint_of_token_being_sent = &mut ctx.accounts.mint_of_token_being_sent;
+    let reward_account = &ctx.accounts.reward_account;
 
     task_vault.prize = prize;
-    task_vault.paid = vec![];
+    task_vault.paid_to = vec![];
     task_vault.authority = authority.key();
     task_vault.token_deposit = amount;
-    task_vault.bump = bump;
     task_vault.mint_of_token_being_sent = mint_of_token_being_sent.key();
+    task_vault.reward_account = reward_account.to_account_info().key();
 
     // Below is the actual instruction that we are going to send to the Token program.
     let transfer_instruction = anchor_spl::token::Transfer {
@@ -49,6 +50,9 @@ pub struct InitializeTaskVault<'info> {
     /// CHECK: Just a pure account
     pub treasurer: AccountInfo<'info>,
     pub mint_of_token_being_sent: Box<Account<'info, anchor_spl::token::Mint>>,
+
+    /// CHECK: The system account that can be used to reward to the user
+    pub reward_account: AccountInfo<'info>,
 
     #[account(init, seeds = [b"task_vault".as_ref()], bump, payer = authority, space = TaskVault::SIZE)]
     pub task_vault: Account<'info, TaskVault>,
