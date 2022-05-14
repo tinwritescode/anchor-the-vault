@@ -297,7 +297,7 @@ describe('plats-solana', () => {
       // Withdraw from the vault
       let amount = new anchor.BN(10000002)
 
-      await program.methods
+      /*       await program.methods
         .withdrawFromTheVault(amount)
         .accounts({
           authority: alice.publicKey,
@@ -314,7 +314,7 @@ describe('plats-solana', () => {
           tokenProgram: spl.TOKEN_PROGRAM_ID,
         })
         .signers([alice])
-        .rpc()
+        .rpc() */
 
       const accountInfo = await program.account.taskVault.fetch(
         pda.taskVaultAccount,

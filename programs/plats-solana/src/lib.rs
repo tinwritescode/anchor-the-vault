@@ -1,10 +1,14 @@
 use anchor_lang::prelude::*;
 declare_id!("3oj39XhPhs68TSn1JvLsavK1CG4NyQW7TG6R9EuE68Ze");
 
+pub mod instructions;
+pub use instructions::*;
+
+pub mod schemas;
+pub use schemas::*;
+
 #[program]
 pub mod plats_solana {
-    use std::vec;
-
     use super::*;
 
     pub fn initialize_taskvault(
@@ -13,196 +17,16 @@ pub mod plats_solana {
         prize: u64,
         amount: u64,
     ) -> Result<()> {
-        let task_vault = &mut ctx.accounts.task_vault;
-        let authority = &ctx.accounts.authority;
-        let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
-        let authority_token_account = &mut ctx.accounts.authority_token_account;
-
-        task_vault.prize = prize;
-        task_vault.paid = vec![];
-        task_vault.authority = authority.key();
-        task_vault.token_deposit = amount;
-        task_vault.bump = bump;
-
-        // Below is the actual instruction that we are going to send to the Token program.
-        let transfer_instruction = anchor_spl::token::Transfer {
-            from: authority_token_account.to_account_info(), // wallet to withdraw from
-            to: task_vault_token_account.to_account_info(),
-            authority: authority.to_account_info().clone(),
-        };
-        let cpi_ctx = CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            transfer_instruction,
-        );
-
-        msg!(
-            "Transferring {} tokens from {} to {}",
-            amount,
-            authority_token_account.key(),
-            task_vault.key()
-        );
-        // The `?` at the end will cause the function to return early in case of an error.
-        // This pattern is common in Rust.
-        anchor_spl::token::transfer(cpi_ctx, task_vault.token_deposit)?;
-
-        Ok(())
+        initialize_taskvault::exec(ctx, bump, prize, amount)
     }
 
     pub fn deposit_to_the_vault(ctx: Context<DepositToTheVault>, amount: u64) -> Result<()> {
-        let task_vault = &mut ctx.accounts.task_vault;
-        let authority_token_account = &mut ctx.accounts.authority_token_account;
-        let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
-        let authority = &ctx.accounts.authority;
-
-        task_vault.token_deposit += amount;
-
-        // Below is the actual instruction that we are going to send to the Token program.
-        let transfer_instruction = anchor_spl::token::Transfer {
-            from: authority_token_account.to_account_info(), // wallet to withdraw from
-            to: task_vault_token_account.to_account_info(),
-            authority: authority.to_account_info().clone(),
-        };
-        let cpi_ctx = CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            transfer_instruction,
-        );
-
-        msg!(
-            "Transferring {} tokens from {} to {}",
-            amount,
-            authority_token_account.key(),
-            task_vault.key()
-        );
-        // The `?` at the end will cause the function to return early in case of an error.
-        // This pattern is common in Rust.
-        anchor_spl::token::transfer(cpi_ctx, task_vault.token_deposit)?;
-
-        Ok(())
+        deposit_to_the_vault::exec(ctx, amount)
     }
 
     pub fn withdraw_from_the_vault(ctx: Context<WithdrawFromTheVault>, amount: u64) -> Result<()> {
-        let task_vault = &mut ctx.accounts.task_vault;
-        let authority_token_account = &mut ctx.accounts.authority_token_account;
-        let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
-        let treasurer = &ctx.accounts.treasurer;
-
-        assert!(
-            task_vault.token_deposit >= amount,
-            "Not enough tokens in the vault"
-        );
-
-        task_vault.token_deposit -= amount;
-
-        // Below is the actual instruction that we are going to send to the Token program.
-        let seeds: &[&[&[u8]]] = &[&[
-            "treasurer".as_ref(),
-            &task_vault.key().to_bytes(),
-            &[task_vault.bump],
-        ]];
-
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            anchor_spl::token::Transfer {
-                from: task_vault_token_account.to_account_info(),
-                to: authority_token_account.to_account_info(),
-                authority: treasurer.to_account_info(),
-            },
-            seeds,
-        );
-
-        msg!(
-            "Transferring {} tokens from {} to {}",
-            amount,
-            task_vault_token_account.key(),
-            authority_token_account.key()
-        );
-
-        // anchor_spl::token::transfer(cpi_ctx, amount)?;
+        // withdraw_from_the_vault::exec(ctx, amount)
 
         Ok(())
     }
-}
-
-#[derive(Accounts)]
-pub struct InitializeTaskVault<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>, // aka sender
-
-    #[account(seeds = [b"treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
-    /// CHECK: Just a pure account
-    pub treasurer: AccountInfo<'info>,
-    pub mint_of_token_being_sent: Box<Account<'info, anchor_spl::token::Mint>>,
-
-    #[account(init, seeds = [b"task_vault".as_ref()], bump, payer = authority, space = TaskVault::SIZE)]
-    pub task_vault: Account<'info, TaskVault>,
-    #[account(init, payer = authority, associated_token::mint = mint_of_token_being_sent, associated_token::authority = treasurer)]
-    pub task_vault_token_account: Account<'info, anchor_spl::token::TokenAccount>,
-    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = authority)]
-    pub authority_token_account: Account<'info, anchor_spl::token::TokenAccount>, // aka: wallet to withdraw from
-
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, anchor_spl::token::Token>,
-    pub rent: Sysvar<'info, Rent>,
-    pub associated_token_program: Program<'info, anchor_spl::associated_token::AssociatedToken>,
-}
-
-#[account]
-pub struct TaskVault {
-    pub authority: Pubkey,
-    pub token_deposit: u64,
-    pub prize: u64,
-    pub paid: Vec<Pubkey>,
-    pub bump: u8,
-}
-
-impl TaskVault {
-    const SIZE: usize = 8 + 32 + 8 + 8 + 1 + 9000; // 9000 is big enough
-}
-
-#[derive(Accounts)]
-pub struct DepositToTheVault<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>, // aka sender
-
-    #[account(mut)]
-    pub task_vault: Account<'info, TaskVault>,
-
-    #[account(seeds = [b"treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
-    /// CHECK: Just a pure account
-    pub treasurer: AccountInfo<'info>,
-
-    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = treasurer)]
-    pub task_vault_token_account: Account<'info, anchor_spl::token::TokenAccount>,
-    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = authority)]
-    pub authority_token_account: Account<'info, anchor_spl::token::TokenAccount>, // aka: wallet to withdraw from
-
-    pub mint_of_token_being_sent: Box<Account<'info, anchor_spl::token::Mint>>,
-
-    // Programs
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, anchor_spl::token::Token>,
-}
-
-#[derive(Accounts)]
-pub struct WithdrawFromTheVault<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>, // aka sender
-
-    #[account(mut)]
-    pub task_vault: Account<'info, TaskVault>,
-
-    #[account(seeds = [b"treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
-    /// CHECK: Just a pure account
-    pub treasurer: AccountInfo<'info>,
-
-    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = treasurer)]
-    pub task_vault_token_account: Account<'info, anchor_spl::token::TokenAccount>,
-    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = authority)]
-    pub authority_token_account: Account<'info, anchor_spl::token::TokenAccount>, // aka: wallet to withdraw from
-
-    pub mint_of_token_being_sent: Box<Account<'info, anchor_spl::token::Mint>>,
-
-    // Programs
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, anchor_spl::token::Token>,
 }
