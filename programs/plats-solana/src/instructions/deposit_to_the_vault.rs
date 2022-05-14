@@ -35,31 +35,6 @@ pub fn exec(ctx: Context<DepositToTheVault>, amount: u64) -> Result<()> {
 }
 
 #[derive(Accounts)]
-pub struct WithdrawFromTheVault<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>, // aka sender
-
-    #[account(mut)]
-    pub task_vault: Account<'info, TaskVault>,
-
-    #[account(seeds = [b"treasurer".as_ref(), &task_vault.key().to_bytes()], bump)]
-    /// CHECK: Just a pure account
-    pub treasurer: AccountInfo<'info>,
-
-    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = treasurer)]
-    pub task_vault_token_account: Account<'info, anchor_spl::token::TokenAccount>,
-    #[account(mut, associated_token::mint = mint_of_token_being_sent, associated_token::authority = authority)]
-    pub authority_token_account: Account<'info, anchor_spl::token::TokenAccount>, // aka: wallet to withdraw from
-
-    #[account(mut)]
-    pub mint_of_token_being_sent: Box<Account<'info, anchor_spl::token::Mint>>,
-
-    // Programs
-    pub system_program: Program<'info, System>,
-    pub token_program: Program<'info, anchor_spl::token::Token>,
-}
-
-#[derive(Accounts)]
 pub struct DepositToTheVault<'info> {
     #[account(mut)]
     pub authority: Signer<'info>, // aka sender

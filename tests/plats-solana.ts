@@ -241,7 +241,7 @@ describe('plats-solana', () => {
     const [, aliceBalancePre] = await readAccount(aliceWallet, provider)
     assert.equal(aliceBalancePre, '1337000000')
 
-    const amount = new anchor.BN(20000000)
+    const amount = new anchor.BN(200)
 
     await program.methods
       .initializeTaskvault(pda.taskVaultBump, SAMPLE_PRIZE, amount)
@@ -266,7 +266,7 @@ describe('plats-solana', () => {
 
     {
       // Deposit to the vault
-      let amount = new anchor.BN(10000000)
+      let amount = new anchor.BN(100)
 
       await program.methods
         .depositToTheVault(amount)
@@ -290,14 +290,14 @@ describe('plats-solana', () => {
       const accountInfo = await program.account.taskVault.fetch(
         pda.taskVaultAccount,
       )
-      console.log(accountInfo)
+      console.log('After deposit:', accountInfo.tokenDeposit.toString())
     }
 
     {
       // Withdraw from the vault
-      let amount = new anchor.BN(10000002)
+      let amount = new anchor.BN(105)
 
-      /*       await program.methods
+      await program.methods
         .withdrawFromTheVault(amount)
         .accounts({
           authority: alice.publicKey,
@@ -314,12 +314,12 @@ describe('plats-solana', () => {
           tokenProgram: spl.TOKEN_PROGRAM_ID,
         })
         .signers([alice])
-        .rpc() */
+        .rpc()
 
       const accountInfo = await program.account.taskVault.fetch(
         pda.taskVaultAccount,
       )
-      console.log(accountInfo)
+      console.log('After withdraw', accountInfo.tokenDeposit.toString())
     }
   })
 })

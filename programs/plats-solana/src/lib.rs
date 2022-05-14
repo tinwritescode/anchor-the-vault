@@ -7,6 +7,9 @@ pub use instructions::*;
 pub mod schemas;
 pub use schemas::*;
 
+pub mod errors;
+pub use errors::*;
+
 #[program]
 pub mod plats_solana {
     use super::*;
@@ -25,8 +28,6 @@ pub mod plats_solana {
     }
 
     pub fn withdraw_from_the_vault(ctx: Context<WithdrawFromTheVault>, amount: u64) -> Result<()> {
-        // withdraw_from_the_vault::exec(ctx, amount)
-
-        Ok(())
+        withdraw_from_the_vault::exec(ctx, amount)
     }
 }
