@@ -11,5 +11,5 @@ pub struct TaskVault {
 }
 
 impl TaskVault {
-    pub const SIZE: usize = 8 + 32 + 8 + 8 + 1 + 32 + 9000; // 9000 is big enough
+    pub const SIZE: usize = 8 + 32 + 8 + 8 + 7000 + 32 + 32; // 7000 is big enough
 }

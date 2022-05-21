@@ -4,7 +4,7 @@ import { PlatsSolana } from '../target/types/plats_solana'
 import * as spl from '@solana/spl-token'
 import { assert } from 'chai'
 
-interface PDAParameters {
+export interface PDAParameters {
   taskVaultAccount: anchor.web3.PublicKey
   taskVaultBump: number
   taskVaultTreasurer: anchor.web3.PublicKey
