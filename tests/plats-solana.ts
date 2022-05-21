@@ -4,12 +4,10 @@ import { PlatsSolana } from '../target/types/plats_solana'
 import * as spl from '@solana/spl-token'
 import { assert } from 'chai'
 
-interface PDAParameters {
-  taskVaultAccount: anchor.web3.PublicKey
-  taskVaultBump: number
-  taskVaultTreasurer: anchor.web3.PublicKey
-  taskVaultTokenAccount: anchor.web3.PublicKey
-}
+// interface PDAParameters {
+//   taskVaultBump: number
+//   taskVaultTreasurer: anchor.web3.PublicKey
+// }
 
 describe('plats-solana', () => {
   // Configure the client to use the local cluster.
@@ -19,7 +17,7 @@ describe('plats-solana', () => {
   const program = anchor.workspace.PlatsSolana as Program<PlatsSolana>
 
   let mintAddress: anchor.web3.PublicKey
-  let pda: PDAParameters
+  // let pda: PDAParameters
   let [alice, aliceWallet]: [anchor.web3.Keypair, anchor.web3.PublicKey] = [
     null,
     null,
@@ -139,40 +137,40 @@ describe('plats-solana', () => {
     return [user, userAssociatedTokenAccount]
   }
 
-  const getPdaParams = async (
-    connection: anchor.web3.Connection,
-    alice: anchor.web3.PublicKey,
-    bob: anchor.web3.PublicKey,
-    mint: anchor.web3.PublicKey,
-  ): Promise<PDAParameters> => {
-    // const uid = new anchor.BN(parseInt((Date.now() / 1000).toString()))
-    // const uidBuffer = uid.toBuffer('le', 8)
+  // const getPdaParams = async (
+  //   connection: anchor.web3.Connection,
+  //   alice: anchor.web3.PublicKey,
+  //   bob: anchor.web3.PublicKey,
+  //   mint: anchor.web3.PublicKey,
+  // ): Promise<PDAParameters> => {
+  // const uid = new anchor.BN(parseInt((Date.now() / 1000).toString()))
+  // const uidBuffer = uid.toBuffer('le', 8)
 
-    let [
-      taskVaultAccount,
-      taskVaultAccountBump,
-    ] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from('task_vault')],
-      program.programId,
-    )
+  // let [
+  //   taskVaultAccount,
+  //   taskVaultAccountBump,
+  // ] = await anchor.web3.PublicKey.findProgramAddress(
+  //   [Buffer.from('task_vault')],
+  //   program.programId,
+  // )
 
-    let [taskVaultTreasurer] = await anchor.web3.PublicKey.findProgramAddress(
-      [Buffer.from('treasurer'), taskVaultAccount.toBuffer()],
-      program.programId,
-    )
+  // let [taskVaultTreasurer] = await anchor.web3.PublicKey.findProgramAddress(
+  //   [Buffer.from('treasurer'), taskVaultAccount.toBuffer()],
+  //   program.programId,
+  // )
 
-    let taskVaultTokenAccount = await anchor.utils.token.associatedAddress({
-      owner: taskVaultTreasurer,
-      mint: mint,
-    })
+  // let taskVaultTokenAccount = await anchor.utils.token.associatedAddress({
+  //   owner: taskVaultTreasurer,
+  //   mint: mint,
+  // })
 
-    return {
-      taskVaultAccount,
-      taskVaultBump: taskVaultAccountBump,
-      taskVaultTreasurer,
-      taskVaultTokenAccount,
-    }
-  }
+  // return {
+  // taskVaultAccount,
+  // taskVaultBump: taskVaultAccountBump,
+  // taskVaultTreasurer,
+  // taskVaultTokenAccount,
+  // }
+  // }
 
   const readAccount = async (
     accountPublicKey: anchor.web3.PublicKey,
@@ -199,50 +197,27 @@ describe('plats-solana', () => {
       mintAddress,
     )
 
-    pda = await getPdaParams(
-      provider.connection,
-      alice.publicKey,
-      bob.publicKey,
-      mintAddress,
-    )
+    // pda = await getPdaParams(
+    //   provider.connection,
+    //   alice.publicKey,
+    //   bob.publicKey,
+    //   mintAddress,
+    // )
   })
-
-  /* it('Initialize a task vault!', async () => {
-    const [, aliceBalancePre] = await readAccount(aliceWallet, provider)
-    assert.equal(aliceBalancePre, '1337000000')
-
-    const amount = new anchor.BN(20000000)
-
-    await program.methods
-      .initializeTaskvault(pda.taskVaultBump, SAMPLE_PRIZE, amount)
-      .accounts({
-        authority: alice.publicKey,
-        authorityTokenAccount: aliceWallet,
-
-        taskVault: pda.taskVaultAccount,
-        treasurer: pda.taskVaultTreasurer,
-        taskVaultTokenAccount: pda.taskVaultTokenAccount,
-
-        mintOfTokenBeingSent: mintAddress,
-
-        // programs
-        systemProgram: anchor.web3.SystemProgram.programId,
-        tokenProgram: spl.TOKEN_PROGRAM_ID,
-        associatedTokenProgram: spl.ASSOCIATED_TOKEN_PROGRAM_ID,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([alice])
-      .rpc()
-
-    const accountInfo = await program.account.taskVault.fetch(
-      pda.taskVaultAccount,
-    )
-    console.log(accountInfo)
-  }) */
 
   it('Initialize the vault (existing deposit) -> Deposit more token -> Withdraw !', async () => {
     const [, aliceBalancePre] = await readAccount(aliceWallet, provider)
     assert.equal(aliceBalancePre, '1337000000')
+
+    const taskVaultAccount = new anchor.web3.Keypair()
+    let [taskVaultTreasurer] = await anchor.web3.PublicKey.findProgramAddress(
+      [Buffer.from('treasurer'), taskVaultAccount.publicKey.toBuffer()],
+      program.programId,
+    )
+    const taskVaultTokenAccount = await anchor.utils.token.associatedAddress({
+      owner: taskVaultTreasurer,
+      mint: mintAddress,
+    })
 
     const amount = new anchor.BN(200)
     const sample_prize = new anchor.BN(20)
@@ -253,20 +228,16 @@ describe('plats-solana', () => {
         authority: alice.publicKey,
         authorityTokenAccount: aliceWallet,
         rewardAccount: alice.publicKey,
-
-        taskVault: pda.taskVaultAccount,
-        treasurer: pda.taskVaultTreasurer,
-        taskVaultTokenAccount: pda.taskVaultTokenAccount,
-
+        taskVault: taskVaultAccount.publicKey,
+        treasurer: taskVaultTreasurer,
+        taskVaultTokenAccount: taskVaultTokenAccount,
         mintOfTokenBeingSent: mintAddress,
-
-        // programs
         systemProgram: anchor.web3.SystemProgram.programId,
         tokenProgram: spl.TOKEN_PROGRAM_ID,
         associatedTokenProgram: spl.ASSOCIATED_TOKEN_PROGRAM_ID,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
-      .signers([alice])
+      .signers([alice, taskVaultAccount])
       .rpc()
 
     console.log(
@@ -283,9 +254,9 @@ describe('plats-solana', () => {
           authority: alice.publicKey,
           authorityTokenAccount: aliceWallet,
 
-          taskVault: pda.taskVaultAccount,
-          treasurer: pda.taskVaultTreasurer,
-          taskVaultTokenAccount: pda.taskVaultTokenAccount,
+          taskVault: taskVaultAccount.publicKey,
+          treasurer: taskVaultTreasurer,
+          taskVaultTokenAccount: taskVaultTokenAccount,
 
           mintOfTokenBeingSent: mintAddress,
 
@@ -297,7 +268,7 @@ describe('plats-solana', () => {
         .rpc()
 
       const accountInfo = await program.account.taskVault.fetch(
-        pda.taskVaultAccount,
+        taskVaultAccount.publicKey,
       )
 
       console.log(
@@ -320,9 +291,9 @@ describe('plats-solana', () => {
           authority: alice.publicKey,
           authorityTokenAccount: aliceWallet,
 
-          taskVault: pda.taskVaultAccount,
-          treasurer: pda.taskVaultTreasurer,
-          taskVaultTokenAccount: pda.taskVaultTokenAccount,
+          taskVault: taskVaultAccount.publicKey,
+          treasurer: taskVaultTreasurer,
+          taskVaultTokenAccount: taskVaultTokenAccount,
 
           mintOfTokenBeingSent: mintAddress,
 
@@ -334,7 +305,7 @@ describe('plats-solana', () => {
         .rpc()
 
       const accountInfo = await program.account.taskVault.fetch(
-        pda.taskVaultAccount,
+        taskVaultAccount.publicKey,
       )
       // console.log('After withdraw', accountInfo.tokenDeposit.toString())
       console.log(
@@ -355,9 +326,9 @@ describe('plats-solana', () => {
           userToReward: bob.publicKey,
           userToRewardTokenAccount: bobWallet,
           rewardAccount: alice.publicKey,
-          taskVault: pda.taskVaultAccount,
-          treasurer: pda.taskVaultTreasurer,
-          taskVaultTokenAccount: pda.taskVaultTokenAccount,
+          taskVault: taskVaultAccount.publicKey,
+          treasurer: taskVaultTreasurer,
+          taskVaultTokenAccount: taskVaultTokenAccount,
 
           mintOfTokenBeingSent: mintAddress,
 
@@ -369,7 +340,7 @@ describe('plats-solana', () => {
         .rpc()
 
       const accountInfo = await program.account.taskVault.fetch(
-        pda.taskVaultAccount,
+        taskVaultAccount.publicKey,
       )
       // console.log('After reward', accountInfo.tokenDeposit.toString())
       console.log(

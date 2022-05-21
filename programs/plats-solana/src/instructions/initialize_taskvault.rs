@@ -54,7 +54,7 @@ pub struct InitializeTaskVault<'info> {
     /// CHECK: The system account that can be used to reward to the user
     pub reward_account: AccountInfo<'info>,
 
-    #[account(init, seeds = [b"task_vault".as_ref()], bump, payer = authority, space = TaskVault::SIZE)]
+    #[account(init, payer = authority, space = TaskVault::SIZE)]
     pub task_vault: Account<'info, TaskVault>,
     #[account(init, payer = authority, associated_token::mint = mint_of_token_being_sent, associated_token::authority = treasurer)]
     pub task_vault_token_account: Account<'info, anchor_spl::token::TokenAccount>,
