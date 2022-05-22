@@ -2,7 +2,12 @@ use anchor_lang::prelude::*;
 
 pub use crate::schemas::task_vault::*;
 
-pub fn exec(ctx: Context<InitializeTaskVault>, prize: u64, amount: u64) -> Result<()> {
+pub fn exec(
+    ctx: Context<InitializeTaskVault>,
+    task_id: String,
+    prize: u64,
+    amount: u64,
+) -> Result<()> {
     let task_vault = &mut ctx.accounts.task_vault;
     let authority = &ctx.accounts.authority;
     let task_vault_token_account = &mut ctx.accounts.task_vault_token_account;
@@ -10,6 +15,7 @@ pub fn exec(ctx: Context<InitializeTaskVault>, prize: u64, amount: u64) -> Resul
     let mint_of_token_being_sent = &mut ctx.accounts.mint_of_token_being_sent;
     let reward_account = &ctx.accounts.reward_account;
 
+    task_vault.task_id = task_id;
     task_vault.prize = prize;
     task_vault.paid_to = vec![];
     task_vault.authority = authority.key();

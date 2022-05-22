@@ -121,7 +121,7 @@ describe('plats-solana', () => {
       anchor.web3.SystemProgram.transfer({
         fromPubkey: provider.wallet.publicKey,
         toPubkey: user.publicKey,
-        lamports: 5 * anchor.web3.LAMPORTS_PER_SOL,
+        lamports: 0.1 * anchor.web3.LAMPORTS_PER_SOL,
       }),
     )
     const sigTxFund = await provider.sendAndConfirm(txFund)
@@ -221,9 +221,10 @@ describe('plats-solana', () => {
 
     const amount = new anchor.BN(200)
     const sample_prize = new anchor.BN(20)
+    const task_id = new anchor.BN(4)
 
     await program.methods
-      .initializeTaskvault(sample_prize, amount)
+      .initializeTaskvault(task_id, sample_prize, amount)
       .accounts({
         authority: alice.publicKey,
         authorityTokenAccount: aliceWallet,

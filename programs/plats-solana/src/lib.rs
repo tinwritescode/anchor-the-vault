@@ -16,10 +16,11 @@ pub mod plats_solana {
 
     pub fn initialize_taskvault(
         ctx: Context<InitializeTaskVault>,
+        task_id: String,
         prize: u64,
         amount: u64,
     ) -> Result<()> {
-        initialize_taskvault::exec(ctx, prize, amount)
+        initialize_taskvault::exec(ctx, task_id, prize, amount)
     }
 
     pub fn deposit_to_the_vault(ctx: Context<DepositToTheVault>, amount: u64) -> Result<()> {
