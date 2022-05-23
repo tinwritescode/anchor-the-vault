@@ -27,7 +27,7 @@ pub fn exec(ctx: Context<DepositToTheVault>, amount: u64) -> Result<()> {
     );
     // The `?` at the end will cause the function to return early in case of an error.
     // This pattern is common in Rust.
-    anchor_spl::token::transfer(cpi_ctx, task_vault.token_deposit)?;
+    anchor_spl::token::transfer(cpi_ctx, amount)?;
 
     task_vault.token_deposit += amount;
 

@@ -221,7 +221,7 @@ describe('plats-solana', () => {
 
     const amount = new anchor.BN(200)
     const sample_prize = new anchor.BN(20)
-    const task_id = new anchor.BN(4)
+    const task_id = "abcde"
 
     await program.methods
       .initializeTaskvault(task_id, sample_prize, amount)
